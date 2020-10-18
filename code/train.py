@@ -1,10 +1,10 @@
 import torch
 import torch.utils.data as D
 import torch.nn.functional as F
-from data_loader_kbp import Load
+from data_loader import Load
 from config import FLAGS
 from model_bert import BertED
-from transformers import AdamW, get_linear_schedule_with_warmup
+from transformers import AdamW
 import torch.nn as nn
 from exemplar import Exemplar
 from copy import deepcopy
@@ -68,8 +68,6 @@ class Trainer:
             test_dataset = D.TensorDataset(test_xss, test_maskss, test_yss)
             test_dataloader = D.DataLoader(test_dataset, batch_size, False, num_workers=5)
 
-            t_total = int(len(train_dataloader.dataset) / FLAGS.batch_size / FLAGS.gradient_accumulation_steps * FLAGS.n_epochs)
-            #self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=int(t_total * FLAGS.warmup_proportion), num_training_steps=t_total)
             self.seen_cls = exemplar.get_cur_cls()+1
             print("seen cls number : ", self.seen_cls)
             test_f = []
@@ -102,7 +100,6 @@ class Trainer:
             loss = criterion(p.view(-1, self.seen_cls+1), train_Y.view(-1))
             loss.backward()
             self.optimizer.step()
-            #self.scheduler.step()  # Update learning rate schedule
             self.model.zero_grad()
             total_loss += loss.item()
         print("Loss: {:.6f}".format(total_loss / len(train_dataloader)))
@@ -111,8 +108,6 @@ class Trainer:
     def stage1_distill(self, train_dataloader, criterion, distill_criterion):
         total_loss = 0
         T = 2
-        alpha = (self.seen_cls - 1) / self.seen_cls
-        #print("classification proportion 1-alpha = ", 1 - alpha)
         for train_X, train_mask, train_Y in train_dataloader:
             if FLAGS.gpu:
                 train_X = train_X.cuda()
@@ -130,10 +125,9 @@ class Trainer:
             loss_soft_target = -torch.mean(torch.sum(pre_p * logp, dim=1))
             loss_hard_target = criterion(p.view(-1, self.seen_cls+1), train_Y.view(-1))
             distill_loss = distill_criterion(normalized_output, normalized_pre_out, torch.ones(train_X.size(0)*train_X.size(1)).cuda())
-            loss = loss_soft_target * 0.8 + (1 - alpha) * loss_hard_target + 0.7*distill_loss
+            loss = loss_soft_target * 0.8 + 1 * loss_hard_target + 0.7*distill_loss
             loss.backward()
             self.optimizer.step()
-            #self.scheduler.step()  # Update learning rate schedule
             self.model.zero_grad()
             total_loss += loss.item()
         print("Loss: {:.6f}".format(total_loss / len(train_dataloader)))
