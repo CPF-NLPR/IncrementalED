@@ -14,7 +14,6 @@ class Exemplar:
     def update(self, cls_num, data_x, data_mask, data_y, model, batch_size):
         self.cur_cls += cls_num
         total_store_num = int(self.max_size/self.cur_cls)
-        #total_store_num = 60
         for i in range(len(self.ids)):
             self.ids[i] = self.ids[i][:total_store_num]
             self.mask[i] = self.mask[i][:total_store_num]
@@ -33,7 +32,6 @@ class Exemplar:
                 X = X.cuda()
                 mask = mask.cuda()
                 _, pooled_output = model(X, mask)
-                # features.append(torch.mean(pooled_output, dim=1))
                 features.append(pooled_output[:, 0:1, :].view(pooled_output.size(0), pooled_output.size(2)))
         features = torch.cat(features, dim = 0)
         class_mean = torch.mean(features, dim = 0).view(1, features.size(1))
