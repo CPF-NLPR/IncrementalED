@@ -12,7 +12,7 @@ class Load:
         id2label = {}
         label2id = {}
         labels = ['None', 'correspondence', 'endposition', 'meet',
-                  'arrestjail', 'die', 'broadcast', 'contact',
+                  'arrestjail', 'die', 'contact', 'broadcast',
                   'transfermoney', 'transportperson', 'attack']
         for label in labels:
             if label not in label2id:
